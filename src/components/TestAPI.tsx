@@ -22,8 +22,6 @@ const TestAPI: React.FC<TestAPIProps> = (props) => {
 	async function apiCall() {
 		setLoadingStates("loading");
 
-		apiManager.systemConfig?.jsonConfig.minimumAppVersion;
-
 		const { data } = await apiManager.fetch({
 			name: "ManageGetAllEmployeesTransactionRequests",
 			queryParams: {
