@@ -29,9 +29,9 @@ function App() {
 		// apiManager.removeRequestInterceptor(req);
 	}, []);
 
-	function login() {
+	async function login() {
 		setAppState("doing Login");
-		apiManager.login("anawaz@abhi.com", "1122");
+		await apiManager.login("athar.ali@arena.net.pk", "1122");
 	}
 
 	return (

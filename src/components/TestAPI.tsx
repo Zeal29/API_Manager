@@ -11,12 +11,28 @@ export interface TestAPIProps {
 	config?: AxiosRequestConfig;
 }
 
+interface TestResponse {
+	userName: string;
+	organizationId: string;
+}
+
 const TestAPI: React.FC<TestAPIProps> = (props) => {
 	const [response, setResponse] = useState<AbhiResponse<any> | null>(null);
 	const [LoadingStates, setLoadingStates] = useState<LoadingStates>("before loading");
 	async function apiCall() {
 		setLoadingStates("loading");
-		const { data } = await apiManager.fetch(props);
+
+		apiManager.systemConfig?.jsonConfig.minimumAppVersion;
+
+		const { data } = await apiManager.fetch({
+			name: "ManageGetAllEmployeesTransactionRequests",
+			queryParams: {
+				organization: "Millennium Entertainment (Pvt) Ltd",
+				limit: 10,
+				offset: 10,
+			},
+		});
+
 		setLoadingStates("done loading");
 		setResponse(data);
 	}

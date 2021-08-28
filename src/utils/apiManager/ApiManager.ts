@@ -31,7 +31,7 @@ export class ApiManage {
 	private set token(value: string) {
 		this.options.tokenSetter(value);
 	}
-	get token() {
+	public get token() {
 		return this.options.tokenGetter();
 	}
 
@@ -94,6 +94,7 @@ export class ApiManage {
 		} = await this.axiosInstance.get<AbhiResponse<SystemConfigRes>>(`${this.IndexUrl}/system/settings/${this.initiator}`);
 
 		this.systemConfig = result;
+
 		this.apiBank = { ...this.systemConfig.jsonConfig.apis.private, ...this.systemConfig.jsonConfig.apis.public };
 
 		this.onLoginListeners.forEach((listener) => listener());
@@ -118,8 +119,13 @@ export class ApiManage {
 
 		let url = apiInfo.path;
 
-		for (const [param, value] of Object.entries(queryParams ?? {})) {
-			url = url.replace(new RegExp(`\/:${param}[\/\b]`), `/${value}/`);
+		const queryParamsEntries = Object.entries(queryParams ?? {});
+
+		if (queryParamsEntries.length > 0) {
+			url += "?";
+			for (const [param, value] of queryParamsEntries) {
+				url += `${param}=${value}&`;
+			}
 		}
 
 		return await this.axiosInstance.request<AbhiResponse<Response>>({
@@ -142,7 +148,7 @@ const tokenGetter = () => {
 	return token ?? "";
 };
 
-export const apiManager = new ApiManage("http://localhost:3000/uat", "admin_web", {
-	tokenSetter,
-	tokenGetter,
+export const apiManager = new ApiManage("https://api-dev.abhi.com.pk", "admin_web", {
+	tokenSetter: tokenSetter,
+	tokenGetter: tokenGetter,
 });
