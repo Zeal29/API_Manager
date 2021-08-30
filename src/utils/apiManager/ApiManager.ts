@@ -7,11 +7,12 @@ export interface FetchParams<Params extends Record<string, any>, queryParams ext
 	params?: Params;
 	queryParams?: queryParams;
 	config?: AxiosRequestConfig;
+	pathVariables?: Record<string, string>;
 }
 
 export interface ApiManagerOptions {
-	readonly tokenSetter: (value: string) => void;
-	readonly tokenGetter: () => string;
+	readonly tokenSetter: (value: string) => Promise<void>;
+	readonly tokenGetter: () => Promise<string>;
 }
 
 export type RequestInterceptor = (value: AxiosRequestConfig) => AxiosRequestConfig;
@@ -22,19 +23,23 @@ export class ApiManage {
 
 	systemConfig: ServiceConfigurations | null = null;
 
+	private lastLogin: Date | null = null;
+
 	axiosInstance = axios.create({});
 
 	private readonly requestInterceptors: RequestInterceptor[] = [];
 	private readonly responseInterceptors: ResponseInterceptor[] = [];
 	private readonly onLoginListeners: (() => void)[] = [];
 
-	private set token(value: string) {
-		this.options.tokenSetter(value);
-	}
-	public get token() {
-		return this.options.tokenGetter();
-	}
+	get isTokenExpired() {
+		const TwentyFourHoursTicks = 24 * 60 * 60 * 1000;
 
+		if (this.lastLogin == null) return true;
+
+		const expireDate = this.lastLogin.getTime() + TwentyFourHoursTicks;
+
+		return expireDate < new Date().getTime();
+	}
 	get isLoggedIn() {
 		return Boolean(this.apiBank) && Boolean(this.systemConfig);
 	}
@@ -67,14 +72,14 @@ export class ApiManage {
 		return true;
 	};
 
-	private requestInterceptor = (value: AxiosRequestConfig) => {
-		value.headers["Authorization"] = `Bearer ${this.token}`;
-		this.requestInterceptors.forEach((Interceptor) => Interceptor(value));
+	private requestInterceptor = async (value: AxiosRequestConfig) => {
+		value.headers["Authorization"] = `Bearer ${await this.options.tokenGetter()}`;
+		this.requestInterceptors.reduce((acc, Interceptor) => Interceptor(acc), value);
 
 		return value;
 	};
 	private responseInterceptor = (value: AxiosResponse) => {
-		this.responseInterceptors.forEach((Interceptor) => Interceptor(value));
+		this.responseInterceptors.reduce((acc, Interceptor) => Interceptor(acc), value);
 
 		return value;
 	};
@@ -85,7 +90,7 @@ export class ApiManage {
 			password,
 		});
 
-		this.token = res.data.data.token;
+		await this.options.tokenSetter(res.data.data.token);
 
 		const {
 			data: {
@@ -97,6 +102,7 @@ export class ApiManage {
 
 		this.apiBank = { ...this.systemConfig.jsonConfig.apis.private, ...this.systemConfig.jsonConfig.apis.public };
 
+		this.lastLogin = new Date();
 		this.onLoginListeners.forEach((listener) => listener());
 
 		return res;
@@ -106,9 +112,13 @@ export class ApiManage {
 		Response extends object,
 		Params extends Record<string, any> = Record<string, any>,
 		queryParams extends Record<string, any> = Record<string, any>,
-	>({ name, config, params, queryParams }: FetchParams<Params, queryParams>): Promise<AxiosResponse<AbhiResponse<Response>>> {
+	>({ name, config, params, queryParams, pathVariables }: FetchParams<Params, queryParams>): Promise<AxiosResponse<AbhiResponse<Response>>> {
 		if (!this.isLoggedIn) {
 			throw new Error("Please Log in first before using any api.");
+		}
+
+		if (this.isTokenExpired) {
+			throw new Error("You token is expired please login again.");
 		}
 
 		const apiInfo = this.apiBank?.[name];
@@ -118,6 +128,10 @@ export class ApiManage {
 		}
 
 		let url = apiInfo.path;
+
+		for (const [param, value] of Object.entries(pathVariables ?? {})) {
+			url = url.replace(new RegExp(`{${param}}`), value);
+		}
 
 		const queryParamsEntries = Object.entries(queryParams ?? {});
 
@@ -141,8 +155,8 @@ export class ApiManage {
 
 const TOKEN_ID = "@@API_MANAGER:USER_API_TOKEN@@";
 
-const tokenSetter = (token: string) => localStorage.setItem(TOKEN_ID, token);
-const tokenGetter = () => {
+const tokenSetter = async (token: string) => localStorage.setItem(TOKEN_ID, token);
+const tokenGetter = async () => {
 	const token = localStorage.getItem(TOKEN_ID);
 
 	return token ?? "";

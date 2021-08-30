@@ -23,11 +23,9 @@ const TestAPI: React.FC<TestAPIProps> = (props) => {
 		setLoadingStates("loading");
 
 		const { data } = await apiManager.fetch({
-			name: "ManageGetAllEmployeesTransactionRequests",
+			name: "GetAvailableBalance",
 			queryParams: {
-				organization: "Millennium Entertainment (Pvt) Ltd",
-				limit: 10,
-				offset: 10,
+				initiator: "admin_web",
 			},
 		});
 
