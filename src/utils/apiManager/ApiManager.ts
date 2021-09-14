@@ -2,10 +2,10 @@ import axios, { AxiosRequestConfig, AxiosResponse } from "axios";
 import { AbhiResponse, LoginRes, SystemConfigRes } from "./responces";
 import { APIList, ServiceConfigJson, Initiator, ServiceConfigurations } from "./types";
 
-export interface FetchParams<Params extends Record<string, any>, queryParams extends Record<string, any>> {
+export interface FetchParams<Body extends Record<string, any>, QueryParams extends Record<string, any>> {
 	name: string;
-	params?: Params;
-	queryParams?: queryParams;
+	data?: Body;
+	queryParams?: QueryParams;
 	config?: AxiosRequestConfig;
 	pathVariables?: Record<string, string>;
 }
@@ -92,6 +92,12 @@ export class ApiManage {
 
 		await this.options.tokenSetter(res.data.data.token);
 
+		await this.LoginFromToken();
+
+		return res;
+	};
+
+	async LoginFromToken() {
 		const {
 			data: {
 				data: { result },
@@ -100,19 +106,24 @@ export class ApiManage {
 
 		this.systemConfig = result;
 
-		this.apiBank = { ...this.systemConfig.jsonConfig.apis.private, ...this.systemConfig.jsonConfig.apis.public };
+		this.apiBank = {
+			...this.systemConfig.jsonConfig.apis.private,
+			...this.systemConfig.jsonConfig.apis.public,
+		};
 
 		this.lastLogin = new Date();
 		this.onLoginListeners.forEach((listener) => listener());
-
-		return res;
-	};
+	}
 
 	async fetch<
 		Response extends object,
-		Params extends Record<string, any> = Record<string, any>,
-		queryParams extends Record<string, any> = Record<string, any>,
-	>({ name, config, params, queryParams, pathVariables }: FetchParams<Params, queryParams>): Promise<AxiosResponse<AbhiResponse<Response>>> {
+		Data extends Record<string, any> = Record<string, any>,
+		QueryParams extends Record<string, any> = Record<string, any>,
+	>({ name, config, data, queryParams, pathVariables }: FetchParams<Data, QueryParams>): Promise<AxiosResponse<AbhiResponse<Response>>> {
+		if ((await this.options.tokenGetter()) !== "") {
+			await this.LoginFromToken();
+		}
+
 		if (!this.isLoggedIn) {
 			throw new Error("Please Log in first before using any api.");
 		}
@@ -144,7 +155,7 @@ export class ApiManage {
 
 		return await this.axiosInstance.request<AbhiResponse<Response>>({
 			url: url,
-			params: params,
+			data: data,
 			method: apiInfo.method,
 			...config,
 		});

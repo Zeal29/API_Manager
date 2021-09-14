@@ -23,9 +23,9 @@ const TestAPI: React.FC<TestAPIProps> = (props) => {
 		setLoadingStates("loading");
 
 		const { data } = await apiManager.fetch({
-			name: "GetAvailableBalance",
-			queryParams: {
-				initiator: "admin_web",
+			name: "AuthPostSetPin",
+			data: {
+				password: "1122",
 			},
 		});
 
